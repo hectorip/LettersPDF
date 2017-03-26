@@ -1,14 +1,22 @@
-// Row number from where to fill in the data (starts as 1 = first row)
-var CUSTOMER_ID = 2;
+
+function onOpen() {
+   var ss = SpreadsheetApp.getActiveSpreadsheet();
+   var menuEntries = [];
+   menuEntries.push({name: "Crear Cartas", functionName: "createLetter"});
+
+   ss.addMenu("Cartas", menuEntries);
+}
+ 
 
 var DOCUMENTS_FOLDER = "0BwKY5Th4tTyfZ1dIeUFBTHhhQVk";
+var FINISHED_FOLDER = "0BwKY5Th4tTyfSlc2NC1NQnp1MXM";
 var templates_basic = {
-  "presidente": "",
-  "fiscal": "1IzKtPMpkOs9IvmqB7JSoaoD_vIm8bgyRrLmqUPauGM0",
-  "primer_ministro": "",
-  "ministro_justicia": "",
-  "ministro_relaciones_exteriores": "",
-  "presidente_tribunal_supremo": ""
+  "presidente": "1fiXtkp3HHTKD4o-hb4S1XvZlrP3AAmSZ9pwvt_KQGK8",
+  "fiscal": "1lQZnZvIH6k77-vw1xcZ2lCZl2aJvDjw435-7fhr69J4",
+  "primer_ministro": "1cb9gE4Q1JSdR1hkkNNDWujKHm2jhznvDjpN10lxWmtQ",
+  "ministro_justicia": "1vEKucFB3GSGRaiNt8OIyZ25kcfqNbB2CUUFRXd-rBe8",
+  "ministro_relaciones_exteriores": "1uU6-NqqMC3-nTqoPl-FzRg0U8cxUfjdDed2UbingypA",
+  "presidente_tribunal_supremo": "1mbhviEQW1Poba5uTtjwEUHg1ss-B-kxatzeikO-ZMkg"
 }
 // Column B is the data holder, 
 var placeholders = [
@@ -20,6 +28,7 @@ var placeholders = [
   "content",
   "",
   "",
+  "",
   "presidente",
   "fiscal",
   "primer_ministro",
@@ -29,7 +38,7 @@ var placeholders = [
   ]
 
 // In which spreadsheet we have all the customer data
-var PERSON_DATA_DOC = "1q4kAVi4Y74y3Lco23iBZn0qWMSE6grNnLjGW75Uh67s";
+var PERSON_DATA_DOC = SpreadsheetApp.getActive().getId();
 
 function getData(sheet){
   var dataRange = sheet.getRange(1, 2, 15);
@@ -48,9 +57,9 @@ function getData(sheet){
 }
 
 function map_symbols(val){
-  if(val="✓"){
+  if(val == "✓"){
     return true;
-  } else if(val="✕") {
+  } else if(val == "✕") {
     return false;
   }
   return val;
@@ -77,13 +86,12 @@ function getRowAsArray(sheet, row) {
   return columns;
 }
 
-function get_or_create_folder(folder_name){
-  var documents_folder = DriveApp.getFolderById(DOCUMENTS_FOLDER);
-  var folders = targetFolder.getFoldersByName(folder_name);
-  if(folders){
-    return folders[0];
+function get_or_create_folder(folder_name, parent_folder){
+  var folders = parent_folder.getFoldersByName(folder_name);
+  if(folders.hasNext()){
+    return folders.next();
   }
-  return documents_folder.createFolder(folder_name);
+  return parent_folder.createFolder(folder_name);
 }
 
 /**
@@ -91,9 +99,8 @@ function get_or_create_folder(folder_name){
  *
  * @return a new document with a given name from the orignal
  */
-function createDuplicateDocument(sourceId, name, foler_name) {
+function createDuplicateDocument(sourceId, name, targetFolder) {
     var source = DriveApp.getFileById(sourceId);
-    var targetFolder = get_or_create_folder(folder_name);
     var newFile = source.makeCopy(name, targetFolder);
 
     return DocumentApp.openById(newFile.getId());
@@ -115,38 +122,40 @@ function replaceParagraph(doc, keyword, newText) {
   } 
 }
 
+function get_parent(doc){
+  var folders = DriveApp.getFileById(doc).getParents();
+  var folder = folders.next();
+  return folder;
+}
 /**
  * Script entry point
  */
 function createLetter() {
 
   var data = SpreadsheetApp.openById(PERSON_DATA_DOC);
-  //var CUSTOMER_ID = Browser.inputBox("Enter customer number in the spreadsheet", Browser.Buttons.OK_CANCEL);
-
-  // Fetch variable names
-  // they are column names in the spreadsheet
   var sheet = data.getSheets()[0];
-  // var columns = getRowAsArray(sheet, 1);
   var columns = placeholders;
+  var letter_data = getData(sheet);
 
   Logger.log("Processing columns:" + columns);
-
-  var customerData = getRowAsArray(sheet, CUSTOMER_ID);
-  var letterData = getData(sheet);
-  Logger.log("Processing data:" + customerData);
-  return
+  Logger.log("Processing data:" + letter_data);
   // Assume first column holds the name of the customer
-  var customerName = customerData[0];
+  var parent_folder = get_parent(PERSON_DATA_DOC); 
+  var targetFolder = get_or_create_folder("Cartas", parent_folder);
+  for(letter in templates_basic){
+    Logger.log("iterating: " + letter);
+    Logger.log("Result: " + letter_data[letter]);
+    if(letter_data[letter]){
+      var current_template = templates_basic[letter];
+      var target = createDuplicateDocument(current_template, letter, targetFolder);
+      Logger.log("Created new document:" + target.getId());
 
-  var target = createDuplicateDocument(SOURCE_TEMPLATE, customerName + " Letter");
-
-  Logger.log("Created new document:" + target.getId());
-
-  for(var i=0; i<columns.length; i++) {
-      var key = "@" + columns[i];
-      var text = customerData[i] || "";
-      var value = text;
-      replaceParagraph(target, key, value);
+      for(var i=0; i<=5; i++){
+          var ph_name = columns[i];
+          var key = "@" + ph_name;
+          var text = letter_data[ph_name] || "";
+          replaceParagraph(target, key, text);
+      }
+    }
   }
-
 }
