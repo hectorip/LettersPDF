@@ -9,6 +9,7 @@ function onOpen() {
  
 
 var DOCUMENTS_FOLDER = "0BwKY5Th4tTyfZ1dIeUFBTHhhQVk";
+var TEMPLATES_FOLDER = "0BwKY5Th4tTyfUE04QjgyWXNvU2M";
 var FINISHED_FOLDER = "0BwKY5Th4tTyfSlc2NC1NQnp1MXM";
 var templates_basic = {
   "presidente": "1fiXtkp3HHTKD4o-hb4S1XvZlrP3AAmSZ9pwvt_KQGK8",
@@ -18,7 +19,8 @@ var templates_basic = {
   "ministro_relaciones_exteriores": "1uU6-NqqMC3-nTqoPl-FzRg0U8cxUfjdDed2UbingypA",
   "presidente_tribunal_supremo": "1mbhviEQW1Poba5uTtjwEUHg1ss-B-kxatzeikO-ZMkg"
 }
-// Column B is the data holder, 
+
+// Column B is the data holder.
 var placeholders = [
   "name",
   "address",
@@ -26,7 +28,7 @@ var placeholders = [
   "city",
   "country",
   "content",
-  "",
+  "template",
   "",
   "",
   "presidente",
@@ -99,8 +101,8 @@ function get_or_create_folder(folder_name, parent_folder){
  *
  * @return a new document with a given name from the orignal
  */
-function createDuplicateDocument(sourceId, name, targetFolder) {
-    var source = DriveApp.getFileById(sourceId);
+function createDuplicateDocument(templates_folder, name, targetFolder) {
+    var source = templates_folder.getFilesByName(name).next();
     var newFile = source.makeCopy(name, targetFolder);
 
     return DocumentApp.openById(newFile.getId());
@@ -127,9 +129,16 @@ function get_parent(doc){
   var folder = folders.next();
   return folder;
 }
-/**
- * Script entry point
- */
+
+function get_templates(style){
+  var templates_folder = DriveApp.getFolderById(TEMPLATES_FOLDER);
+  var style_folder = templates_folder.getFoldersByName(style);
+  if(style_folder.hasNext()){
+    var folder = style_folder.next(); 
+  }
+  return folder;
+}
+
 function createLetter() {
 
   var data = SpreadsheetApp.openById(PERSON_DATA_DOC);
@@ -142,12 +151,12 @@ function createLetter() {
   // Assume first column holds the name of the customer
   var parent_folder = get_parent(PERSON_DATA_DOC); 
   var targetFolder = get_or_create_folder("Cartas", parent_folder);
+  var templates = get_templates(letter_data["template"])
   for(letter in templates_basic){
     Logger.log("iterating: " + letter);
     Logger.log("Result: " + letter_data[letter]);
     if(letter_data[letter]){
-      var current_template = templates_basic[letter];
-      var target = createDuplicateDocument(current_template, letter, targetFolder);
+      var target = createDuplicateDocument(templates, letter, targetFolder);
       Logger.log("Created new document:" + target.getId());
 
       for(var i=0; i<=5; i++){
