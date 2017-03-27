@@ -145,6 +145,8 @@ function createLetter() {
   var sheet = data.getSheets()[0];
   var columns = placeholders;
   var letter_data = getData(sheet);
+  var current_formated_date = LanguageApp.translate(Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd 'de' MMMM 'de' Y"),'en', 'es');
+  var current_date = current_formated_date.replace(/(\w){3,}/g, function(l){ return l[0].toUpperCase() + l.slice(1) });
 
   Logger.log("Processing columns:" + columns);
   Logger.log("Processing data:" + letter_data);
@@ -165,6 +167,7 @@ function createLetter() {
           var text = letter_data[ph_name] || "";
           replaceParagraph(target, key, text);
       }
+      replaceParagraph(target, "@date", current_date);
     }
   }
 }
